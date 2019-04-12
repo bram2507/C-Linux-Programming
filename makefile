@@ -20,7 +20,7 @@ clean:falonso
 
 run:falonso
 		${CLRSCRN}
-		${RUN}${BUILD} 5 1 2>salida.txt
+		${RUN}${BUILD} 5 1 
 		
 ipcs:
 		${IPCS}
