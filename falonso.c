@@ -21,7 +21,7 @@
 #define SIGINT_SIG 30
 #define SEM_ARRAY  10
 #define SHM_SEM    1
-#define SPEED 90
+#define SPEED 80
 #define STAR_RACE 2
 #define SHM_LIMIT 300
 
@@ -102,7 +102,7 @@ int main(int argc, char* argv[]){
     shm.semid = semid;
     for (int i = 0; i < SEM_ARRAY; i++)  semctl( semid, i,  SETVAL, 1); // declare 
 
-    ret = 2; //Parámetro pasado por la terminal manejar de esa forma y borrar este
+    ret = 60; //Parámetro pasado por la terminal manejar de esa forma y borrar este
     semctl( semid, STAR_RACE, SETVAL, ret); // Inicializacion de los semáforos - START_RACE espera que todos los coches esten creados  
     semctl( semid, SEM_V, SETVAL, 1);       // Control de cruce del semáforo Vertical 
     semctl( semid, SEM_H, SETVAL, 1);       // Control de cruce del semáforo Horizontal
@@ -200,17 +200,17 @@ int main(int argc, char* argv[]){
                      if (auxLib+1 == 21){ // Revisamos que la siguiente posicion de auxLib sea el cruce 
                         semop_PV(shm.semid, SEM_V,-1); // De ser asi no quedamos bloquedos
                      }else 
-                         if (auxLib-4 == 21)  //Dejamos libre el cruce para que pasen otros coches
+                         if (auxLib-5 == 21)  //Dejamos libre el cruce para que pasen otros coches
                             semop_PV(shm.semid, SEM_V,1);
                      
                      if (auxLib+1 == 106){ // Revisamos que la siguiente posicion de auxLib sea el cruce
                         semop_PV(shm.semid, SEM_H,-1); // De ser asi no quedamos bloquedos
                      }else 
-                         if (auxLib-4== 106) //Dejamos libre el cruce para que pasen otros coches
+                         if (auxLib-5== 106) //Dejamos libre el cruce para que pasen otros coches
                            semop_PV(shm.semid, SEM_H,1);
                     
                      semop_PV(shm.semid,SHM_SEM,-1);
-                       if (auxLib == 133)   // Incrementamos la cuanta de paso por meta
+                       if (auxLib == 133 && carril == CARRIL_DERECHO)   // Incrementamos la cuanta de paso por meta
                            shm.count++;     // para que cincida con la biblioteca
                      semop_PV(shm.semid,SHM_SEM,1);
 
@@ -265,6 +265,7 @@ int main(int argc, char* argv[]){
         semaphoreLight(shm, semH, semV);
     }
 
+
     fin_falonso(&shm.count); //Enviamos la cuenta a la biblioteca 
     
     shmdt((char*)buf);
@@ -301,7 +302,7 @@ int semaphoreLight(shMemory shm, int semH, int semV){
         semctl( shm.semid, INTERCEPT_V, SETVAL, 0);  
     }
    
-    sleep(3); // Los semaforos etardaran en cambiar de luz  3 segundos 
+    sleep(5); // Los semaforos etardaran en cambiar de luz  3 segundos 
     semH++;
     semV++;
 
