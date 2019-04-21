@@ -21,7 +21,7 @@
 #define SIGINT_SIG 30
 #define SEM_ARRAY  10
 #define SHM_SEM    1
-#define SPEED 80
+#define SPEED 100
 #define STAR_RACE 2
 #define SHM_LIMIT 301
 
@@ -32,6 +32,7 @@
 #define INTERCEPT_H 6
 #define TEST_SEM 7
 #define LAP_COUNT 8
+#define LIMIT 11
 
 
 typedef struct shmemory{
@@ -40,6 +41,8 @@ typedef struct shmemory{
             int msqid;
             int shmid;
             char* buf;
+            int cambioD;
+            int cambioI;
 }shMemory;
 
 
@@ -86,7 +89,7 @@ int main(int argc, char* argv[]){
 	}     
     
     shMemory shm;  //Estructura general con identificadores de los IPCs y variables útiles
-    shm.count = 0;  
+    shm.count = shm.cambioD = shm.cambioI = 0;  
    
     int shmid = shmget(IPC_PRIVATE, sizeof(char)*SHM_LIMIT, IPC_CREAT | 0600 );  //Reserva e Inicializacion Memoria Compartida
     shm.buf   = (char *) shmat (shmid, NULL, 0);  // Se vincula la memoria compartida en espacio del SO con la memoria de nuestro programa 
@@ -140,6 +143,9 @@ int main(int argc, char* argv[]){
     int typeMsg = 0;
     int auxLib  = 0;
     int carril  = CARRIL_DERECHO;
+
+    int cambioDerecho[]   = {0,14,29,61,63,66,68,69,130,131,135 };
+    int cambioIzquierdo[] = {0,16,29,59,61,63,65,126,127,129,134};
 
     for (int i = 0; i < ret; i++)
     {        
@@ -209,15 +215,30 @@ int main(int argc, char* argv[]){
                     
                         if (gotSIGINT) break;   //Revisamos si se ha registrado la señal SIGINT
 
-                        if (auxLib == 66){
+                        if (auxLib == cambioDerecho[shm.cambioD] ){
                             cambio_carril(&carril, &desp, color+16);
+
+                            semop_PV(semid, SHM_SEM, -1);
+                            if( shm.cambioD == LIMIT) shm.cambioD = 0;
+                                else shm.cambioD++;
+                            semop_PV(semid, SHM_SEM, 1);
                         }
+
+                        if (auxLib == cambioIzquierdo[shm.cambioI] ){
+                            cambio_carril(&carril, &desp, color+16);
+
+                            semop_PV(semid, SHM_SEM, -1);
+                            if( shm.cambioI == LIMIT) shm.cambioI = 0;
+                                else shm.cambioI++;
+                            semop_PV(semid, SHM_SEM, 1);
+                        }
+
                          
 
 
-                        if (auxLib == 134){
-                            cambio_carril(&carril, &desp, color+16);
-                        }
+                        //     cambio_carril(&carril, &desp, color+16);
+                        // if (auxLib == 134){
+                        // }
 
                         typeMsg = auxLib+1;   //Intentamos avanzar reciviendo un mensaje de la posicion a la que queremos ir
                         if ( msgrcv( shm.msqid, (struct msgbuf *)&message, 
