@@ -21,7 +21,7 @@
 #define SIGINT_SIG 30
 #define SEM_ARRAY  10
 #define SHM_SEM    1
-#define SPEED 10
+#define SPEED 80
 #define STAR_RACE 2
 #define SHM_LIMIT 301
 
@@ -106,7 +106,7 @@ int main(int argc, char* argv[]){
     shm.semid = semid;
     for (int i = 0; i < SEM_ARRAY; i++)  semctl( semid, i,  SETVAL, 1); // declare 
 
-    ret = 2; //Parámetro pasado por la terminal manejar de esa forma y borrar este
+    ret = 20; //Parámetro pasado por la terminal manejar de esa forma y borrar este
     semctl( semid, STAR_RACE, SETVAL, ret); // Inicializacion de los semáforos - START_RACE espera que todos los coches esten creados  
     semctl( semid, SEM_V, SETVAL, 1);       // Control de cruce del semáforo Vertical 
     semctl( semid, SEM_H, SETVAL, 1);       // Control de cruce del semáforo Horizontal
@@ -170,57 +170,53 @@ int main(int argc, char* argv[]){
                    
                     auxLib = desp; //Ciclo de Avance Carril Derecho , asignamos posicion a coche en el carril
                     while (1){
-
+                        
+                       
                         if (gotSIGINT) break;  //Revisamos si se ha registrado la señal SIGINT
                         velocidad(SPEED, carril, desp);
 
-                        if (carril == CARRIL_DERECHO){
-
-                        }
-                        if ( auxLib == 136) 
+                        if ( auxLib == 136 ) 
                         {
-                        avance_coche(&carril, &desp, color+16);
-                        message.type= 1;
-                        message.pos = 1;
-                        msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);  
-                        auxLib = 0;
+                            avance_coche(&carril, &desp, color+16);
+                            message.type= 1;
+                            message.pos = 1;
+                            msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);  
+                            auxLib = 0;
                         }
 
                         semop_PV(shm.semid, SHM_SEM,-1);
-                        if ((auxLib == 133 && carril == CARRIL_DERECHO) || 
-                            (auxLib == 131 && carril == CARRIL_IZQUIERDO)) 
+                        if ((desp == 133 && carril == CARRIL_DERECHO) || 
+                            (desp == 131 && carril == CARRIL_IZQUIERDO)) 
                             semop_PV(shm.semid,LAP_COUNT,1);
                         semop_PV(shm.semid, SHM_SEM,1);
 
                         if (gotSIGINT) break; //Revisamos si se ha registrado la señal SIGINT
                         
                     
-                        if( auxLib == 105 ) {
+                        if ((desp == 105 && carril == CARRIL_DERECHO)|| 
+                            (desp ==  98 && carril == CARRIL_IZQUIERDO)) {
                             if( shm.buf[274] == ROJO || shm.buf[274] == AMARILLO){
                                 semop_PV(shm.semid, INTERCEPT_H,-1);
                             }
                         }
                         
-                        if ( auxLib == 20){
+                        if ((desp == 20 && carril == CARRIL_DERECHO) || 
+                            (desp == 22 && carril == CARRIL_IZQUIERDO)){
                             if ( shm.buf[275] == ROJO || shm.buf[275] == AMARILLO){
                                 semop_PV(shm.semid, INTERCEPT_V,-1);
                             }
-                        }
-                        
-                        if ((auxLib+1 == 21 || auxLib+1 == 105) && (shm.buf[274] != VERDE && shm.buf[275] != VERDE)){ 
-                            semop_PV(shm.semid, SEM_V,-1);
-                        }else if ((auxLib-5 == 24 || auxLib-5 == 108) && (shm.buf[274] != VERDE && shm.buf[275] != VERDE)){
-                            
-                            semop_PV(shm.semid, SEM_V,1);
                         }
                     
                         if (gotSIGINT) break;   //Revisamos si se ha registrado la señal SIGINT
 
                         if (auxLib == 66){
-                           
                             cambio_carril(&carril, &desp, color+16);
-                            carril = CARRIL_IZQUIERDO;
-                            
+                        }
+                         
+
+
+                        if (auxLib == 134){
+                            cambio_carril(&carril, &desp, color+16);
                         }
 
                         typeMsg = auxLib+1;   //Intentamos avanzar reciviendo un mensaje de la posicion a la que queremos ir
@@ -304,8 +300,6 @@ int semaphoreLight(shMemory shm, int semH, int semV){
     semop_PV(shm.semid, SHM_SEM,-1);
     if( shm.buf[274] == VERDE)
     {
-        //semctl( shm.semid, SEM_H, SETVAL, 1);
-        //semctl( shm.semid, SEM_H, SETVAL, 1);
         semop_PV( shm.semid, INTERCEPT_H, 1); 
     }else semctl( shm.semid, INTERCEPT_H,SETVAL, 0);
 
@@ -314,8 +308,6 @@ int semaphoreLight(shMemory shm, int semH, int semV){
     semop_PV(shm.semid, SHM_SEM,-1);
     if( shm.buf[275] == VERDE)
     { 
-        //semctl( shm.semid, SEM_V, SETVAL, 1);
-         //semctl( shm.semid, SEM_V, SETVAL, 1);
          semop_PV( shm.semid, INTERCEPT_V, 1);  
     }else semctl( shm.semid, INTERCEPT_V, SETVAL, 0);
 
