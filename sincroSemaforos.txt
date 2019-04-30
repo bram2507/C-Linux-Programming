@@ -1,0 +1,23 @@
+if (desp == 20){
+                            semop_PV(semid, SEM_V, -1);
+                        }
+                       
+                       
+                        semop_PV(semid, SHM_SEM, -1);
+                            if (desp == 24)
+                            {
+                                //semop_PV(semid, SEM_H, 1);
+                                semop_PV(semid, SEM_V, 1);
+                                //semctl(semid, SEM_H,SETVAL,0);
+                            }
+                        semop_PV(semid, SHM_SEM, 1);
+
+                        semop_PV(semid, SHM_SEM, -1);
+                        if (desp == 109) {
+                                 //semop_PV(semid, SEM_V, 1);
+                                
+                                 semctl(semid, SEM_V,SETVAL,0);
+                                 
+                                 
+                        }
+                        semop_PV(semid, SHM_SEM, 1);
