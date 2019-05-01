@@ -142,7 +142,7 @@ int main(int argc, char* argv[]){
     int color = -1;   
     int pid   =  0; 
     int desp  =  0;
-    int vel = rand()%101;
+    int vel   =  vel = rand()%101;
 
     int typeMsg = 0;
     int auxLib  = 0;
@@ -304,8 +304,8 @@ int semaphoreLight(shMemory shm, int semH, int semV){
     {
         semop_PV( shm.semid, INTERCEPT_H, 1); 
     }
-    else 
-        semctl( shm.semid, INTERCEPT_H,SETVAL, 0);
+    
+      
 
     semop_PV(shm.semid, SHM_SEM,1);
     
@@ -314,9 +314,9 @@ int semaphoreLight(shMemory shm, int semH, int semV){
     { 
          semop_PV( shm.semid, INTERCEPT_V, 1);  
     }
-    else 
-        semctl( shm.semid, INTERCEPT_V, SETVAL, 0);
-
+    
+    semctl( shm.semid, INTERCEPT_V, SETVAL, 0);
+    semctl( shm.semid, INTERCEPT_H,SETVAL, 0);
     semop_PV(shm.semid, SHM_SEM,1);
    
     sleep(3);  
