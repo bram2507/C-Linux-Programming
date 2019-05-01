@@ -98,6 +98,7 @@ int main(int argc, char* argv[]){
     int shmid = shmget(IPC_PRIVATE, sizeof(char)*SHM_LIMIT, IPC_CREAT | 0600 );  //Reserva e Inicializacion Memoria Compartida
     shm.buf   = (char *) shmat (shmid, NULL, 0);  // Se vincula la memoria compartida en espacio del SO con la memoria de nuestro programa 
     char *buf = shm.buf;
+    
     shm.shmid = shmid;
     shm.buf[SHM_LIMIT] = '0';
 
@@ -176,7 +177,7 @@ int main(int argc, char* argv[]){
                     
                     auxLib = desp;
                     while (1){
-                        
+
                         if (gotSIGINT) break;  //Revisamos si se ha registrado la señal SIGINT                       
                         velocidad(speed, carril, desp);
 
@@ -199,15 +200,19 @@ int main(int argc, char* argv[]){
                         if (gotSIGINT) break; //Revisamos si se ha registrado la señal SIGINT
                         
                         if ((desp == 105 && carril == CARRIL_DERECHO)|| 
-                            (desp ==  98 && carril == CARRIL_IZQUIERDO)) {
-                            if( shm.buf[274] == ROJO || shm.buf[274] == AMARILLO){
+                            (desp ==  98 && carril == CARRIL_IZQUIERDO)) 
+                        {
+                            if( shm.buf[274] == ROJO || shm.buf[274] == AMARILLO)
+                            {
                                 semop_PV(shm.semid, INTERCEPT_H,-1);
                             }
                         }
                         
                         if ((desp == 20 && carril == CARRIL_DERECHO) || 
-                            (desp == 22 && carril == CARRIL_IZQUIERDO)){
-                            if ( shm.buf[275] == ROJO || shm.buf[275] == AMARILLO){
+                            (desp == 22 && carril == CARRIL_IZQUIERDO))
+                        {
+                            if ( shm.buf[275] == ROJO || shm.buf[275] == AMARILLO)
+                            {
                                 semop_PV(shm.semid, INTERCEPT_V,-1);
                             }
                         }
@@ -216,8 +221,9 @@ int main(int argc, char* argv[]){
                         
                         if ((desp == 20 || desp == 105) && (shm.buf[274] == VERDE && shm.buf[275] == VERDE))
                         {
-                             semop_PV(semid, SEM_V, -1);
                              semop_PV(semid, INTERCEPT_V, -1);
+                             semop_PV(semid, SEM_V, -1);
+                            
                         }
                        
                         if ((desp == 24 || desp == 109) && (shm.buf[274] == VERDE && shm.buf[275] == VERDE) ) 
@@ -300,7 +306,9 @@ int semaphoreLight(shMemory shm, int semH, int semV){
     if( shm.buf[274] == VERDE)
     {
         semop_PV( shm.semid, INTERCEPT_H, 1); 
-    }else semctl( shm.semid, INTERCEPT_H,SETVAL, 0);
+    }
+    else 
+        semctl( shm.semid, INTERCEPT_H,SETVAL, 0);
 
     semop_PV(shm.semid, SHM_SEM,1);
     
@@ -308,7 +316,9 @@ int semaphoreLight(shMemory shm, int semH, int semV){
     if( shm.buf[275] == VERDE)
     { 
          semop_PV( shm.semid, INTERCEPT_V, 1);  
-    }else semctl( shm.semid, INTERCEPT_V, SETVAL, 0);
+    }
+    else 
+        semctl( shm.semid, INTERCEPT_V, SETVAL, 0);
 
     semop_PV(shm.semid, SHM_SEM,1);
    
