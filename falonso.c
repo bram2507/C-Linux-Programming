@@ -69,7 +69,8 @@ int main(int argc, char* argv[]){
 
             ret   = atoi(argv[1]);
             speed = atoi(argv[2]);  
-
+    
+    ret = 20;
     //Tratamiento de señales SIGINT y Correspondeintes
 	sigset_t sigintonly, sigall;
 	struct   sigaction actionSIGINT;
@@ -112,7 +113,7 @@ int main(int argc, char* argv[]){
     shm.semid = semid;
     for (int i = 0; i < SEM_ARRAY; i++)  semctl( semid, i,  SETVAL, 1); 
 
-    ret = 20; 
+     
     semctl( semid, STAR_RACE, SETVAL, ret); 
     semctl( semid, SEM_V, SETVAL, 1);       
     semctl( semid, SEM_H, SETVAL, 1);       
@@ -164,17 +165,15 @@ int main(int argc, char* argv[]){
 	                actionSIGINT.sa_flags   = 0;
 
                     sigaction (SIGINT, &actionSIGINT, NULL );
+                    msgrcv( shm.msqid, (void*)&message, sizeof(type_message)-sizeof(long), (int)desp, IPC_NOWAIT);   
                     if (gotSIGINT) break;
                 
-                    msgrcv( shm.msqid, (void*)&message, sizeof(type_message)-sizeof(long), (int)desp, IPC_NOWAIT);   
-
-                    semop_PV(shm.semid, SHM_SEM,-1);
-                    inicio_coche(&carril,&desp,color+16);
-                    semop_PV(shm.semid, SHM_SEM,1);
-                   
-                    semop_PV(shm.semid,STAR_RACE,-1);
-                    semop_PV(shm.semid,STAR_RACE,0);
-
+                    inicio_coche(&carril,&desp,color+16);    
+                    semop_PV(semid,STAR_RACE,-1);
+                    semop_PV(semid,STAR_RACE,0);
+                    
+                    if (gotSIGINT) break;
+                    
                     auxLib = desp;
                     while (1){
 
@@ -215,7 +214,6 @@ int main(int argc, char* argv[]){
                     
                         if (gotSIGINT) break;   
                         
-                        
                         if ((desp == 20 || desp == 105) && (shm.buf[274] == VERDE && shm.buf[275] == VERDE))
                         {
                              semop_PV(semid, SEM_V, -1);
@@ -224,12 +222,11 @@ int main(int argc, char* argv[]){
                        
                         if ((desp == 24 || desp == 109) && (shm.buf[274] == VERDE && shm.buf[275] == VERDE) ) 
                         {
-                            
                             semop_PV(semid, INTERCEPT_H, -1);
-                            
-                            //semop_PV(semid, SEM_V, 0);
                             semop_PV(semid, SEM_V, 1);  
                         }
+
+                        if (gotSIGINT) break;
                        
                         typeMsg = auxLib+1;   
                         if ( msgrcv( shm.msqid, (struct msgbuf *)&message, sizeof(type_message)-sizeof(long), (int)typeMsg, 0) != -1)
@@ -250,7 +247,6 @@ int main(int argc, char* argv[]){
                                 auxLib++;                                       
                             }
                         }
-
                         if (gotSIGINT) break; 
                     }
                     
@@ -259,35 +255,33 @@ int main(int argc, char* argv[]){
                         shmdt((char*)shm.buf);
                         exit(0);
                     }
-               
-                
+
                 break;
             default: 
                     break;
         }
     }
     
-    int    semH = VERDE; //Inicializacion de luces del ciclo semafórico 
-    int    semV = ROJO;  //Inicializacion de luces del ciclo semafórico
-    
+    int    semH = VERDE; 
+    int    semV = ROJO;  
     while(1)
     {   
-        if (gotSIGINT) break; //Si se registra la señal SIGINT salir del ciclo semafórico
+        if (gotSIGINT) break; 
         semaphoreLight(shm, semH, semV);
     }
+
     for (int i = 0; i < ret; i++) wait(NULL);
 
     shm.count=semctl( semid, LAP_COUNT, GETVAL);
-    fin_falonso(&shm.count); //Enviamos la cuenta a la biblioteca 
+    fin_falonso(&shm.count); 
     
     shmdt((char*)buf);
     if (gotSIGINT) 
-        ipcrm(semid,shmid,msqid); //Eliminamos los recursos tanto si se ha detectado una señal SIGINT como si no
+        ipcrm(semid,shmid,msqid); 
     else 
         ipcrm(semid,shmid,msqid);
       
     fprintf(stderr," - El programa ha finalizado correctamente\n\n");
-
     return EXIT_SUCCESS;
 }
 
