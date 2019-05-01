@@ -176,7 +176,7 @@ int main(int argc, char* argv[]){
                     
                     auxLib = desp;
                     while (1){
-
+                        
                         if (gotSIGINT) break;  //Revisamos si se ha registrado la señal SIGINT                       
                         velocidad(speed, carril, desp);
 
