@@ -142,7 +142,7 @@ int main(int argc, char* argv[]){
     int color = -1;   
     int pid   =  0; 
     int desp  =  0;
-    int vel   =  0;
+    int vel = rand()%101;
 
     int typeMsg = 0;
     int auxLib  = 0;
@@ -152,7 +152,8 @@ int main(int argc, char* argv[]){
     {        
         color++;
         desp+=1;
-        vel = rand()%101;
+        
+        speed = rand()%vel;
         if( color == 7) color = 0;
         switch (pid = fork()){
             case -1:
@@ -160,7 +161,6 @@ int main(int argc, char* argv[]){
                     fprintf(stderr, "Error al realizar fork() \n");
                     break;
             case 0:  // Proceso Hijo  
-                    speed = rand()%vel;
                     actionSIGINT.sa_handler = sigintHandler;
 	                actionSIGINT.sa_mask    = sigintonly;
 	                actionSIGINT.sa_flags   = 0;
@@ -219,12 +219,12 @@ int main(int argc, char* argv[]){
                     
                         if (gotSIGINT) break;   
                         
-                        if ((desp == 20 || desp == 105) )
+                        if (desp == 20 || desp == 105)
                         {
                              semop_PV(semid, SEM_V, -1);   
                         }
                        
-                        if ((desp == 24 || desp == 109) ) 
+                        if (desp == 24 || desp == 109) 
                         {
                             semop_PV(semid, SEM_V, 1);  
                         }
@@ -319,7 +319,7 @@ int semaphoreLight(shMemory shm, int semH, int semV){
 
     semop_PV(shm.semid, SHM_SEM,1);
    
-    sleep(3); // Los semaforos etardaran en cambiar de luz  3 segundos 
+    sleep(3);  
     semH++;
     semV++;
 
