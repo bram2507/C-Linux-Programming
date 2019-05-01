@@ -1,15 +1,3 @@
-///////////////////////////////////////////////////////////////
-// Practica de SSOOII - Universidad de Salamanca             //
-//                      Escuala Politecnica de Zamora        //
-//                      Grado en Ingenieria                  //
-//                                                           //   
-// Titulo             - Un día en las carreras (de coches)   //
-//                                                           //
-// Autor  - Abraham Alvarez Gomez                            //
-// DNI    - 79257294F                                        //
-// Curso  - 2018/2019                       ///////////////////
-////////////////////////////////////////////
-
 #ifndef ALONSO_H
 #define ALONOSO_H
     #include <stdio.h>
@@ -33,17 +21,21 @@
 #endif
 
 #define SIGINT_SIG 30
-#define SEM_ARRAY  7
+#define SEM_ARRAY  10
 #define SHM_SEM    1
 #define SPEED 100
 #define STAR_RACE 2
-#define SHM_LIMIT 300
+#define SHM_LIMIT 301
 
 
 #define SEM_V 3
-#define INTERCEPT_V 4 
-#define INTERCEPT_H 5 
-#define LAP_COUNT   6   
+#define SEM_H 4
+#define INTERCEPT_V 5
+#define INTERCEPT_H 6
+#define TEST_SEM 7
+#define LAP_COUNT 8
+#define LIMIT 11
+
 
 typedef struct shmemory{
             int count;
@@ -79,6 +71,7 @@ int main(int argc, char* argv[]){
             speed = atoi(argv[2]);  
     
     ret = 20;
+    //Tratamiento de señales SIGINT y Correspondeintes
 	sigset_t sigintonly, sigall;
 	struct   sigaction actionSIGINT;
     
@@ -107,6 +100,7 @@ int main(int argc, char* argv[]){
     char *buf = shm.buf;
     
     shm.shmid = shmid;
+    shm.buf[SHM_LIMIT] = '0';
 
     int msqid = msgget(ftok ("bin/ls",0600), IPC_CREAT | 0600); //Reserva de Cola de Mensajes 
     if ( msqid == -1 )
@@ -120,14 +114,17 @@ int main(int argc, char* argv[]){
     shm.semid = semid;
     for (int i = 0; i < SEM_ARRAY; i++)  semctl( semid, i,  SETVAL, 1); 
 
+     
     semctl( semid, STAR_RACE, SETVAL, ret); 
-    semctl( semid, SEM_V, SETVAL, 1);             
+    semctl( semid, SEM_V, SETVAL, 1);       
+    semctl( semid, SEM_H, SETVAL, 1);       
     semctl( semid, INTERCEPT_V, SETVAL, 0); 
     semctl( semid, INTERCEPT_H, SETVAL, 0); 
+    semctl( semid, TEST_SEM, SETVAL, 0);
     semctl( semid, LAP_COUNT, SETVAL, 0);
    
-    type_message message;           //recibo 1 -> 136 recibe el primer mensaje que te encuentre
-    for ( int i = 1; i <=135; i++)  //0 - 136 [ si auxlibx == 1 -> 136 Y 136 -> 1]
+    type_message message;  
+    for ( int i = 1; i <=135; i++)
     {
       message.type= i;
       message.pos = i;
@@ -155,6 +152,7 @@ int main(int argc, char* argv[]){
     {        
         color++;
         desp+=1;
+        
         speed = rand()%vel;
         if( color == 7) color = 0;
         switch (pid = fork()){
@@ -190,6 +188,7 @@ int main(int argc, char* argv[]){
                             message.pos = 1;
                             msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);  
                             auxLib = 0;
+                         
                         }
      
                         if ((desp == 133 && carril == CARRIL_DERECHO) || 
@@ -280,9 +279,10 @@ int main(int argc, char* argv[]){
     fin_falonso(&shm.count); 
     
     shmdt((char*)buf);
-    if (gotSIGINT) ipcrm(semid,shmid,msqid);
-     
-    else ipcrm(semid,shmid,msqid);
+    if (gotSIGINT) 
+        ipcrm(semid,shmid,msqid); 
+    else 
+        ipcrm(semid,shmid,msqid);
       
     fprintf(stderr," - El programa ha finalizado correctamente\n\n");
     return EXIT_SUCCESS;
@@ -295,6 +295,7 @@ void ipcrm(int semid, int shmid, int msqid){
 }
 
 int semaphoreLight(shMemory shm, int semH, int semV){   
+
     luz_semAforo(HORIZONTAL, semH);
     luz_semAforo(VERTICAL,   semV);
  
@@ -303,6 +304,9 @@ int semaphoreLight(shMemory shm, int semH, int semV){
     {
         semop_PV( shm.semid, INTERCEPT_H, 1); 
     }
+    
+      
+
     semop_PV(shm.semid, SHM_SEM,1);
     
     semop_PV(shm.semid, SHM_SEM,-1);
@@ -310,25 +314,32 @@ int semaphoreLight(shMemory shm, int semH, int semV){
     { 
          semop_PV( shm.semid, INTERCEPT_V, 1);  
     }
+    
     semctl( shm.semid, INTERCEPT_V, SETVAL, 0);
     semctl( shm.semid, INTERCEPT_H,SETVAL, 0);
     semop_PV(shm.semid, SHM_SEM,1);
    
-    sleep(3); semH++; semV++;
+    sleep(3);  
+    semH++;
+    semV++;
 
     if( semH == 4) semH = 1;
     if( semV == 4) semV = 1;
 
-    if (gotSIGINT) return SIGINT_SIG;
-    else  semaphoreLight(shm, semH, semV);
-
+    if (gotSIGINT) 
+        return SIGINT_SIG;
+    else 
+        semaphoreLight(shm, semH, semV);
+   
     return EXIT_SUCCESS;
 }
 
-int semop_PV (int semid, int index , int numop ){   
+
+int semop_PV (int semid, int index , int numop ){            
       struct sembuf op_p;  
+
       op_p.sem_num = index;    /** indice en el array de semafros **/
-      op_p.sem_op  = numop;    /** un wait (resto 1)  signal sumo 1**/
+      op_p.sem_op  = numop;   /** un wait (resto 1)  signal sumo 1**/
       op_p.sem_flg =  0;       /** flag **/
       return semop( semid, &op_p, 1 );    
 }
