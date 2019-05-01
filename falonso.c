@@ -108,20 +108,20 @@ int main(int argc, char* argv[]){
     }      
     shm.msqid = msqid;
 
-    int semid = semget(ftok("bin/cat", 888),SEM_ARRAY,0600 | IPC_CREAT); //Reserva de array de semaforos, cantidad SEM_ARRAY
+    int semid = semget(ftok("bin/cat", 888),SEM_ARRAY,0600 | IPC_CREAT); 
     shm.semid = semid;
-    for (int i = 0; i < SEM_ARRAY; i++)  semctl( semid, i,  SETVAL, 1); // declare 
+    for (int i = 0; i < SEM_ARRAY; i++)  semctl( semid, i,  SETVAL, 1); 
 
-    ret = 20; //Parámetro pasado por la terminal manejar de esa forma y borrar este
-    semctl( semid, STAR_RACE, SETVAL, ret); // Inicializacion de los semáforos - START_RACE espera que todos los coches esten creados  
-    semctl( semid, SEM_V, SETVAL, 1);       // Control de cruce del semáforo Vertical 
-    semctl( semid, SEM_H, SETVAL, 1);       // Control de cruce del semáforo Horizontal
-    semctl( semid, INTERCEPT_V, SETVAL, 0); // Permite avanzar los coches cuando luz del semáforo vertical está en verde
-    semctl( semid, INTERCEPT_H, SETVAL, 0); // Permite avanzar los coches cuando luz del semáforo horizontal está en verde
+    ret = 20; 
+    semctl( semid, STAR_RACE, SETVAL, ret); 
+    semctl( semid, SEM_V, SETVAL, 1);       
+    semctl( semid, SEM_H, SETVAL, 1);       
+    semctl( semid, INTERCEPT_V, SETVAL, 0); 
+    semctl( semid, INTERCEPT_H, SETVAL, 0); 
     semctl( semid, TEST_SEM, SETVAL, 0);
     semctl( semid, LAP_COUNT, SETVAL, 0);
    
-    type_message message; //inicilizar cola de mensaje para el carril derecho  
+    type_message message;  
     for ( int i = 1; i <=135; i++)
     {
       message.type= i;
@@ -129,10 +129,8 @@ int main(int argc, char* argv[]){
       msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);
     }
 
-
-    
     inicio_falonso(speed, semid, shm.buf);  //Inicializar biblioteca
-    if (gotSIGINT) //Se revisa si se ha registrado la señal SIGINT
+    if (gotSIGINT) 
     {
         ipcrm(semid,shmid,msqid);
         fprintf(stderr,"El programa ha finalizado correctamente\n\n");
@@ -140,9 +138,9 @@ int main(int argc, char* argv[]){
     }
     
     int color = -1;   
-    int pid   = 0; 
-    int desp  = 0;
-    int vel   = 0;
+    int pid   =  0; 
+    int desp  =  0;
+    int vel   =  0;
 
     int typeMsg = 0;
     int auxLib  = 0;
@@ -160,56 +158,45 @@ int main(int argc, char* argv[]){
                     fprintf(stderr, "Error al realizar fork() \n");
                     break;
             case 0:  // Proceso Hijo  
-                speed = rand()%vel;
-                actionSIGINT.sa_handler = sigintHandler;
-	            actionSIGINT.sa_mask    = sigintonly;
-	            actionSIGINT.sa_flags   = 0;
+                    speed = rand()%vel;
+                    actionSIGINT.sa_handler = sigintHandler;
+	                actionSIGINT.sa_mask    = sigintonly;
+	                actionSIGINT.sa_flags   = 0;
 
-                sigaction (SIGINT, &actionSIGINT, NULL );
-                if (gotSIGINT) break;
+                    sigaction (SIGINT, &actionSIGINT, NULL );
+                    if (gotSIGINT) break;
                 
-                    //Recibo mensaje de mi posicion - desp
-                    msgrcv( shm.msqid, (void*)&message, sizeof(type_message)-sizeof(long), (int)desp, IPC_NOWAIT);    
-                    
-                    //Dibujamos un coche en pantalla en posicion desp y esperamos a dibujar los ret-1 restantes
-                     
-                     
-                     semop_PV(shm.semid, SHM_SEM,-1);
-                     inicio_coche(&carril,&desp,color+16);
-                     semop_PV(shm.semid, SHM_SEM,1);
-                     //Ciclo de Avance Carril Derecho , asignamos posicion a coche en el carril
-                     semop_PV(shm.semid,STAR_RACE,-1);
-                     semop_PV(shm.semid,STAR_RACE,0);
-
-                  
-                    velocidad(SPEED, carril, desp);
-                    
+                    msgrcv( shm.msqid, (void*)&message, sizeof(type_message)-sizeof(long), (int)desp, IPC_NOWAIT);   
 
                     semop_PV(shm.semid, SHM_SEM,-1);
-                    auxLib = desp;
+                    inicio_coche(&carril,&desp,color+16);
                     semop_PV(shm.semid, SHM_SEM,1);
-                    while (1){
-                        
-                        if (gotSIGINT) break;  //Revisamos si se ha registrado la señal SIGINT
-                        
+                   
+                    semop_PV(shm.semid,STAR_RACE,-1);
+                    semop_PV(shm.semid,STAR_RACE,0);
 
-                        semop_PV(shm.semid, SHM_SEM,-1);
+                    auxLib = desp;
+                    while (1){
+
+                        if (gotSIGINT) break;  //Revisamos si se ha registrado la señal SIGINT                       
+                        velocidad(speed, carril, desp);
+
                         if ( auxLib == 136 ) 
-                        {
+                        {   
                             avance_coche(&carril, &desp, color+16);
                             message.type= 1;
                             message.pos = 1;
                             msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);  
                             auxLib = 0;
+                         
                         }
-                        semop_PV(shm.semid, SHM_SEM,1);
-
-                        semop_PV(shm.semid, SHM_SEM,-1);
+     
                         if ((desp == 133 && carril == CARRIL_DERECHO) || 
                             (desp == 131 && carril == CARRIL_IZQUIERDO)) 
-                            semop_PV(shm.semid,LAP_COUNT,1);
-                        semop_PV(shm.semid, SHM_SEM,1);
-
+                        {
+                            semop_PV(shm.semid,LAP_COUNT,1);  
+                        }
+                       
                         if (gotSIGINT) break; //Revisamos si se ha registrado la señal SIGINT
                         
                         if ((desp == 105 && carril == CARRIL_DERECHO)|| 
@@ -226,58 +213,49 @@ int main(int argc, char* argv[]){
                             }
                         }
                     
-                        if (gotSIGINT) break;   //Revisamos si se ha registrado la señal SIGINT
+                        if (gotSIGINT) break;   
                         
-                        semop_PV(semid, SHM_SEM, -1);
-                        if (desp == 20 || desp == 105){
-                           
-                            semop_PV(semid, SHM_SEM, 1);
-                            semop_PV(semid, SEM_V, -1);
-                           
-                        }else  semop_PV(semid, SHM_SEM, 1);
-
-            
-                        semop_PV(semid, SHM_SEM, 1);
-                        if (desp == 24 || desp == 109) {
-                                
-                                 semop_PV(semid, SEM_V, 1);       
+                        
+                        if ((desp == 20 || desp == 105) && (shm.buf[274] == VERDE && shm.buf[275] == VERDE))
+                        {
+                             semop_PV(semid, SEM_V, -1);
+                             semop_PV(semid, INTERCEPT_V, -1);
                         }
-                         semop_PV(semid, SHM_SEM, -1);
-                 
-                        
-                        typeMsg = auxLib+1;   //Intentamos avanzar reciviendo un mensaje de la posicion a la que queremos ir
                        
-                        if ( msgrcv( shm.msqid, (struct msgbuf *)&message, 
-                                        sizeof(type_message)-sizeof(long), 
-                                                    (int)typeMsg, 0) != -1)
+                        if ((desp == 24 || desp == 109) && (shm.buf[274] == VERDE && shm.buf[275] == VERDE) ) 
+                        {
+                            
+                            semop_PV(semid, INTERCEPT_H, -1);
+                            
+                            //semop_PV(semid, SEM_V, 0);
+                            semop_PV(semid, SEM_V, 1);  
+                        }
+                       
+                        typeMsg = auxLib+1;   
+                        if ( msgrcv( shm.msqid, (struct msgbuf *)&message, sizeof(type_message)-sizeof(long), (int)typeMsg, 0) != -1)
                         {
                             if (message.pos == typeMsg)
                             { 
-                            avance_coche(&carril, &desp, color+16);
-                            message.type= auxLib;
-                            message.pos = auxLib;
-                            msgsnd (shm.msqid, (struct msgbuf *)&message, 
-                                                        sizeof(message.pos), 
-                                                                IPC_NOWAIT);
-    
-                            if (auxLib == 1) //Si estamos auxLib es 1 debemos enviar mensaje 
-                            {                //para dejar libre la posicion trasera  
-                                message.type= 136;
-                                message.pos = 136; // Hay que tener en cuanta que posicion 0 no puede
-                                msgsnd (shm.msqid, (struct msgbuf *)&message, //implementarse con mensajes
-                                                        sizeof(message.pos), //ya que al intentar recivir el mensaje tipo 0
-                                                                IPC_NOWAIT); //se recivira cualquier mensaje en su lugar 
-                            }                                               //este es el comportamiento prederminado de la funcion
-                                                                            //por esa razon cogemos el 1 en vez de 0 como posicion anterior
-                            auxLib++;                                       //ademas de por ser el ultimo deplazamiento del carrill derecho.
-                            }//Una vez he podido avanzar incrementamos la posicion de auxLib.
+                                avance_coche(&carril, &desp, color+16);
+                                message.type= auxLib;
+                                message.pos = auxLib;
+                                msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);
+        
+                                if (auxLib == 1) 
+                                {                 
+                                    message.type= 136;
+                                    message.pos = 136; 
+                                    msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT); 
+                                }                                                                                  
+                                auxLib++;                                       
+                            }
                         }
 
-                        if (gotSIGINT) break; //Revisamos si se ha registrado la señal SIGINT
+                        if (gotSIGINT) break; 
                     }
                     
-                    if (gotSIGINT) //Si se ha registrado la señal SIGINT desvinculamos la memoria compartida 
-                    {              //con la de nuestro programa para poder eliminarla y cada porceso terminará.
+                    if (gotSIGINT) 
+                    {              
                         shmdt((char*)shm.buf);
                         exit(0);
                     }
@@ -291,12 +269,12 @@ int main(int argc, char* argv[]){
     
     int    semH = VERDE; //Inicializacion de luces del ciclo semafórico 
     int    semV = ROJO;  //Inicializacion de luces del ciclo semafórico
-   
-    // while(1)
-    // {   
-    //     if (gotSIGINT) break; //Si se registra la señal SIGINT salir del ciclo semafórico
-    //     //semaphoreLight(shm, semH, semV);
-    // }
+    
+    while(1)
+    {   
+        if (gotSIGINT) break; //Si se registra la señal SIGINT salir del ciclo semafórico
+        semaphoreLight(shm, semH, semV);
+    }
     for (int i = 0; i < ret; i++) wait(NULL);
 
     shm.count=semctl( semid, LAP_COUNT, GETVAL);
@@ -340,7 +318,7 @@ int semaphoreLight(shMemory shm, int semH, int semV){
 
     semop_PV(shm.semid, SHM_SEM,1);
    
-    sleep(1); // Los semaforos etardaran en cambiar de luz  3 segundos 
+    sleep(2); // Los semaforos etardaran en cambiar de luz  3 segundos 
     semH++;
     semV++;
 
