@@ -221,14 +221,11 @@ int main(int argc, char* argv[]){
                         
                         if ((desp == 20 || desp == 105) )
                         {
-                            
-                             semop_PV(semid, SEM_V, -1);
-                            
+                             semop_PV(semid, SEM_V, -1);   
                         }
                        
                         if ((desp == 24 || desp == 109) ) 
                         {
-                            
                             semop_PV(semid, SEM_V, 1);  
                         }
 
