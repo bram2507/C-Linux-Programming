@@ -322,7 +322,7 @@ int semaphoreLight(shMemory shm, int semH, int semV){
 
     semop_PV(shm.semid, SHM_SEM,1);
    
-    sleep(2); // Los semaforos etardaran en cambiar de luz  3 segundos 
+    sleep(3); // Los semaforos etardaran en cambiar de luz  3 segundos 
     semH++;
     semV++;
 
