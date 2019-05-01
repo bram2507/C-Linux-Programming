@@ -219,16 +219,16 @@ int main(int argc, char* argv[]){
                     
                         if (gotSIGINT) break;   
                         
-                        if ((desp == 20 || desp == 105) && (shm.buf[274] == VERDE && shm.buf[275] == VERDE))
+                        if ((desp == 20 || desp == 105) )
                         {
-                             semop_PV(semid, INTERCEPT_V, -1);
+                            
                              semop_PV(semid, SEM_V, -1);
                             
                         }
                        
-                        if ((desp == 24 || desp == 109) && (shm.buf[274] == VERDE && shm.buf[275] == VERDE) ) 
+                        if ((desp == 24 || desp == 109) ) 
                         {
-                            semop_PV(semid, INTERCEPT_H, -1);
+                            
                             semop_PV(semid, SEM_V, 1);  
                         }
 
