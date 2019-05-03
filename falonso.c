@@ -44,6 +44,7 @@
 #define INTERCEPT_V 4 
 #define INTERCEPT_H 5 
 #define LAP_COUNT   6   
+#define SEMLIMIT    32767
 
 typedef struct shmemory{
             int count;
@@ -146,6 +147,7 @@ int main(int argc, char* argv[]){
     int pid   =  0; 
     int desp  =  0;
     int vel   =  vel = rand()%101;
+    int count = 0;
 
     int typeMsg = 0;
     int auxLib  = 0;
@@ -195,7 +197,16 @@ int main(int argc, char* argv[]){
                         if ((desp == 133 && carril == CARRIL_DERECHO) || 
                             (desp == 131 && carril == CARRIL_IZQUIERDO)) 
                         {
-                            semop_PV(shm.semid,LAP_COUNT,1);  
+                            semop_PV(shm.semid,LAP_COUNT,1);
+                            
+                            semop_PV(semid, SHM_SEM, -1);
+                            count=semctl( semid, LAP_COUNT, GETVAL);
+                            if (count == SEMLIMIT ){
+                                shm.count+=count;
+                                semctl( semid, LAP_COUNT, SETVAL,0);
+                            }
+                            semop_PV(semid, SHM_SEM, 1);
+                            
                         }
                        
                         if (gotSIGINT) break; //Revisamos si se ha registrado la señal SIGINT
@@ -225,7 +236,7 @@ int main(int argc, char* argv[]){
                              semop_PV(semid, SEM_V, -1);   
                         }
                        
-                        if (desp == 24 || desp == 109) 
+                        if (desp == 22 || desp == 109) 
                         {
                             semop_PV(semid, SEM_V, 1);  
                         }
@@ -265,6 +276,7 @@ int main(int argc, char* argv[]){
             default: 
                     break;
         }
+
     }
     
     int    semH = VERDE; 
@@ -277,7 +289,7 @@ int main(int argc, char* argv[]){
 
     for (int i = 0; i < ret; i++) wait(NULL);
 
-    shm.count=semctl( semid, LAP_COUNT, GETVAL);
+    shm.count=shm.count+semctl( semid, LAP_COUNT, GETVAL);
     fin_falonso(&shm.count); 
     
     shmdt((char*)buf);
