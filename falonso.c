@@ -238,16 +238,17 @@ int main(int argc, char* argv[]){
                             if (message.pos == typeMsg)
                             { 
                                 avance_coche(&carril, &desp, color+16);
-                                message.type= auxLib;
-                                message.pos = auxLib;
-                                msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);
-        
                                 if (auxLib == 1) 
                                 {                 
-                                    message.type= 136;
-                                    message.pos = 136; 
-                                    msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT); 
-                                }                                                                                  
+                                    message.type = 136;
+                                    message.pos  = 136; 
+                                    msgsnd (msqid, (struct msgbuf *)&message, sizeof(message) - sizeof(long), IPC_NOWAIT); 
+                                }
+                                else{
+                                     message.type= auxLib;
+                                     message.pos = auxLib;
+                                     msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message) - sizeof(long), IPC_NOWAIT);
+                                }                                                                           
                                 auxLib++;                                       
                             }
                         }

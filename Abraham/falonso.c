@@ -300,25 +300,25 @@ int main(int argc, char* argv[]){
                             }while(indice>=20);
                             if (desp == cambioCarrilId[indice]){
                                 typeMsg = cambioCarrilIdd[indice];
-                                if ( msgrcv( shm.msqid, (struct msgbuf *)&message, 
+                                if ( msgrcv(msqid, (struct msgbuf *)&message, 
                                                 sizeof(type_message)-sizeof(long), 
                                                         (int)typeMsg, 0) != -1)
                                 {
-                                    if (message.pos == typeMsg)
+                                    if (message.type == typeMsg)
                                     {
                                         cambio_carril(&carril,&desp,color+16);
                                         message.type= cambioCarrilId[indice];
                                         message.pos = cambioCarrilId[indice]; 
-                                        msgsnd (shm.msqid, (struct msgbuf *)&message, 
-                                                                sizeof(message.pos), 
+                                        msgsnd (msqid, (struct msgbuf *)&message, 
+                                                                sizeof(message), 
                                                                         IPC_NOWAIT);
 
                                         if (desp == 1) //Si estamos auxLib es 1 debemos enviar mensaje 
                                         {                //para dejar libre la posicion trasera  
                                             message.type= 136;
-                                            message.pos = 136; // Hay que tener en cuanta que posicion 0 no puede
-                                            msgsnd (shm.msqid, (struct msgbuf *)&message, //implementarse con mensajes
-                                                                    sizeof(message.pos), //ya que al intentar recivir el mensaje tipo 0
+                                                                                        // Hay que tener en cuanta que posicion 0 no puede
+                                            msgsnd (shm.msqid, (struct msgbuf *)&message,//implementarse con mensajes
+                                                                    sizeof(message), //ya que al intentar recivir el mensaje tipo 0
                                                                             IPC_NOWAIT); //se recivira cualquier mensaje en su lugar 
                                         }    
                                     
@@ -332,25 +332,25 @@ int main(int argc, char* argv[]){
                               
                                         typeMsg = desp+1;   //Intentamos avanzar reciviendo un mensaje de la posicion a la que queremos ir
                                         if ( msgrcv( shm.msqid, (struct msgbuf *)&message, 
-                                                        sizeof(type_message)-sizeof(long), 
+                                                        sizeof(type_message)+sizeof(long), 
                                                                     (int)typeMsg, 0) != -1)
                                         {
-                                            if (message.pos == typeMsg)
+                                            if (message.type == typeMsg)
                                             { 
                                             message.type= desp;
                                             message.pos = desp;
                                             avance_coche(&carril, &desp, color+16);
                                            
                                             msgsnd (shm.msqid, (struct msgbuf *)&message, 
-                                                                        sizeof(message.pos), 
+                                                                        sizeof(message), 
                                                                                 IPC_NOWAIT);
                     
                                             if (auxLib == 1) //Si estamos auxLib es 1 debemos enviar mensaje 
                                             {                //para dejar libre la posicion trasera  
                                                 message.type= 136;
-                                                message.pos = 136; // Hay que tener en cuanta que posicion 0 no puede
+                                                 // Hay que tener en cuanta que posicion 0 no puede
                                                 msgsnd (shm.msqid, (struct msgbuf *)&message, //implementarse con mensajes
-                                                                        sizeof(message.pos), //ya que al intentar recivir el mensaje tipo 0
+                                                                        sizeof(message), //ya que al intentar recivir el mensaje tipo 0
                                                                                 IPC_NOWAIT); //se recivira cualquier mensaje en su lugar 
                                             }                                               //este es el comportamiento prederminado de la funcion
                                                                                             //por esa razon cogemos el 1 en vez de 0 como posicion anterior
