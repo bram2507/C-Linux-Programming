@@ -92,19 +92,19 @@ int main(int argc, char* argv[]){
 		exit(EXIT_FAILURE);
 	}     
     
-    shMemory *shm;  //Estructura general con identificadores de los IPCs y variables útiles
+    shMemory *shm; 
     
-    int shmid = shmget(IPC_PRIVATE, sizeof(shMemory), IPC_CREAT | 0600 );  //Reserva e Inicializacion Memoria Compartida
-    shm   = (shMemory*) shmat (shmid, NULL, 0);  // Se vincula la memoria compartida en espacio del SO con la memoria de nuestro programa 
+    int shmid = shmget(IPC_PRIVATE, sizeof(shMemory), IPC_CREAT | 0600 ); 
+    shm   = (shMemory*) shmat (shmid, NULL, 0);  
     
     shm->count = 0; 
     shm->shmid = shmid;
    
-    int msqid = msgget(ftok ("bin/ls",0600), IPC_CREAT | 0600); //Reserva de Cola de Mensajes 
+    int msqid = msgget(ftok ("bin/ls",0600), IPC_CREAT | 0600);  
     if ( msqid == -1 )
     {
-        perror("Error de creacion cola de mensajes"); //Borrar los recurso reservados hasta el
-        exit(EXIT_FAILURE);                           //momento , no esta implementado
+        perror("Error de creacion cola de mensajes"); 
+        exit(EXIT_FAILURE);                           
     }      
     shm->msqid = msqid;
 
