@@ -33,18 +33,14 @@
 #endif
 
 #define SIGINT_SIG 30
-#define SEM_ARRAY  7
+#define SEM_ARRAY  6
 #define SHM_SEM    1
 #define SPEED 100
 #define STAR_RACE 2
 #define SHM_LIMIT 300
-
-
-#define SEM_V 3
+#define CRUCE 3
 #define INTERCEPT_V 4 
-#define INTERCEPT_H 5 
-#define LAP_COUNT   6   
-#define SEMLIMIT    1000
+#define INTERCEPT_H 5    
 
 typedef struct shmemory{
             int count;
@@ -52,13 +48,11 @@ typedef struct shmemory{
             int msqid;
             int shmid;
             char buf[300];
-            int cambioD;
-            int cambioI;
 }shMemory;
 
 
 typedef struct type_message{
-                 long int type;    
+                 long type;    
                  int pos;
 }type_message;
 
@@ -68,12 +62,10 @@ void ipcrm          (int shmid, int semid, int msqid);
 int  semaphoreLight (shMemory *shm,int,int);
 int  semop_PV       (int semid, int index, int numop );
 void sigintHandler  (int sn);
-int inicio          ( char **argumentos);
 
 int main(int argc, char* argv[]){
 
     srand(time(NULL));
-     
     int ret = 1; 
     int speed = 1; 
 
@@ -81,10 +73,9 @@ int main(int argc, char* argv[]){
             speed = atoi(argv[2]);  
     
     ret = 20;
-	sigset_t sigintonly, sigall;
+	sigset_t sigintonly;
 	struct   sigaction actionSIGINT;
     
-	sigfillset(&sigall);
 	sigfillset(&sigintonly);
 
     sigdelset (&sigintonly,SIGCHLD);
@@ -105,14 +96,10 @@ int main(int argc, char* argv[]){
     
     int shmid = shmget(IPC_PRIVATE, sizeof(shMemory), IPC_CREAT | 0600 );  //Reserva e Inicializacion Memoria Compartida
     shm   = (shMemory*) shmat (shmid, NULL, 0);  // Se vincula la memoria compartida en espacio del SO con la memoria de nuestro programa 
-    //char *buf = shm.buf;
     
     shm->count = 0; 
-    shm->cambioD = 0;
-    shm->cambioI = 0; 
     shm->shmid = shmid;
    
-
     int msqid = msgget(ftok ("bin/ls",0600), IPC_CREAT | 0600); //Reserva de Cola de Mensajes 
     if ( msqid == -1 )
     {
@@ -121,25 +108,24 @@ int main(int argc, char* argv[]){
     }      
     shm->msqid = msqid;
 
-    int semid = semget(ftok("bin/cat", 888),SEM_ARRAY,0600 | IPC_CREAT); 
+    int semid  = semget(ftok("bin/cat", 888),SEM_ARRAY,0600 | IPC_CREAT); 
     shm->semid = semid;
-    for (int i = 0; i < SEM_ARRAY; i++)  semctl( semid, i,  SETVAL, 1); 
 
-    semctl( semid, STAR_RACE, SETVAL, ret); 
-    semctl( semid, SEM_V, SETVAL, 1);             
-    semctl( semid, INTERCEPT_V, SETVAL, 0); 
-    semctl( semid, INTERCEPT_H, SETVAL, 0); 
-    semctl( semid, LAP_COUNT, SETVAL, 0);
+    semctl( semid,   STAR_RACE, SETVAL, ret); 
+    semctl( semid,       CRUCE, SETVAL,   1);      
+    semctl( semid,     SHM_SEM, SETVAL,   1);       
+    semctl( semid, INTERCEPT_V, SETVAL,   0); 
+    semctl( semid, INTERCEPT_H, SETVAL,   0); 
    
-    type_message message;           //recibo 1 -> 136 recibe el primer mensaje que te encuentre
-    for ( int i = 1; i <=135; i++)  //0 - 136 [ si auxlibx == 1 -> 136 Y 136 -> 1]
+    type_message message;           
+    for ( int i = 1; i <=135; i++)  
     {
       message.type= i;
       message.pos = i;
       msgsnd (msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);
     }
     
-    inicio_falonso(speed, semid, shm->buf);  //Inicializar biblioteca
+    inicio_falonso(speed, semid, shm->buf);  
     if (gotSIGINT) 
     {
         ipcrm(semid,shmid,msqid);
@@ -149,8 +135,8 @@ int main(int argc, char* argv[]){
     
     int color = -1;   
     int pid   =  0; 
-    int desp  =  0;
-    int vel   =  vel = rand()%101;
+    int desp  =  0; 
+    int vel   = rand()%101;
 
     int typeMsg = 0;
     int auxLib  = 0;
@@ -172,38 +158,37 @@ int main(int argc, char* argv[]){
 	                actionSIGINT.sa_mask    = sigintonly;
 	                actionSIGINT.sa_flags   = 0;
 
-                    sigaction (SIGINT, &actionSIGINT, NULL );
+                    sigaction (SIGINT, &actionSIGINT, NULL ); 
+
                     msgrcv(msqid, (void*)&message, sizeof(type_message)-sizeof(long), (int)desp, IPC_NOWAIT);   
-                    if (gotSIGINT) break;
-                
+                    
                     inicio_coche(&carril,&desp,color+16);    
                     semop_PV(semid,STAR_RACE,-1);
                     semop_PV(semid,STAR_RACE,0);
                     
-                    if (gotSIGINT) break;
-                    
                     auxLib = desp;
                     while (1){
 
-                        if (gotSIGINT) break;  //Revisamos si se ha registrado la señal SIGINT                       
+                        if (gotSIGINT) break;               
                         velocidad(speed, carril, desp);
 
                         if ( auxLib == 136 ) 
                         {   
-                            avance_coche(&carril, &desp, color+16);
+                            avance_coche(&carril, &desp, color+16); // inicio de carril desp = 0;
                             message.type= 1;
                             message.pos = 1;
                             msgsnd (msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);  
                             auxLib = 0;
                         }
      
+                        if (gotSIGINT) break; 
+
                         if ((desp == 133 && carril == CARRIL_DERECHO) || 
                             (desp == 131 && carril == CARRIL_IZQUIERDO)) 
                         {
                            semop_PV(semid, SHM_SEM, -1);
                            shm->count++;
                            semop_PV(semid, SHM_SEM,  1);
- 
                         }
                        
                         if (gotSIGINT) break; //Revisamos si se ha registrado la señal SIGINT
@@ -225,18 +210,12 @@ int main(int argc, char* argv[]){
                                 semop_PV(semid, INTERCEPT_V,-1);
                             }
                         }
+
+                        if (gotSIGINT) break; 
                     
-                        if (gotSIGINT) break;   
-                        
-                        if (desp == 20 || desp == 105)
-                        {
-                             semop_PV(semid, SEM_V, -1);   
-                        }
+                        if (desp == 20 || desp == 105) semop_PV(semid, CRUCE, -1);   
                        
-                        if (desp == 22 || desp == 109) 
-                        {
-                            semop_PV(semid, SEM_V, 1);  
-                        }
+                        if (desp == 22 || desp == 109) semop_PV(semid, CRUCE, 1);  
 
                         if (gotSIGINT) break;
                        
@@ -263,8 +242,6 @@ int main(int argc, char* argv[]){
                         if (gotSIGINT) break; 
                     }
                     
-                   
-
                     if (gotSIGINT) 
                     {   
                         shmdt((shMemory*)shm);
@@ -280,14 +257,13 @@ int main(int argc, char* argv[]){
     
     int    semH = VERDE; 
     int    semV = ROJO;  
-    while(1)
+    while (1)
     {   
         if (gotSIGINT) break; 
         semaphoreLight(shm, semH, semV);
     }
     
     for (int i = 0; i < ret; i++) wait(NULL);
-    
     fin_falonso(&(shm->count));
 
     shmdt((shMemory*)shm);
