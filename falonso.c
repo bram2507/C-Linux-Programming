@@ -44,14 +44,14 @@
 #define INTERCEPT_V 4 
 #define INTERCEPT_H 5 
 #define LAP_COUNT   6   
-#define SEMLIMIT    32767
+#define SEMLIMIT    1000
 
 typedef struct shmemory{
             int count;
             int semid; 
             int msqid;
             int shmid;
-            char* buf;
+            char buf[300];
             int cambioD;
             int cambioI;
 }shMemory;
@@ -65,7 +65,7 @@ typedef struct type_message{
 int gotSIGINT = 0;
 
 void ipcrm          (int shmid, int semid, int msqid);
-int  semaphoreLight (shMemory shm,int,int);
+int  semaphoreLight (shMemory *shm,int,int);
 int  semop_PV       (int semid, int index, int numop );
 void sigintHandler  (int sn);
 int inicio          ( char **argumentos);
@@ -73,6 +73,7 @@ int inicio          ( char **argumentos);
 int main(int argc, char* argv[]){
 
     srand(time(NULL));
+     
     int ret = 1; 
     int speed = 1; 
 
@@ -100,14 +101,17 @@ int main(int argc, char* argv[]){
 		exit(EXIT_FAILURE);
 	}     
     
-    shMemory shm;  //Estructura general con identificadores de los IPCs y variables útiles
-    shm.count = shm.cambioD = shm.cambioI = 0;  
-   
-    int shmid = shmget(IPC_PRIVATE, sizeof(char)*SHM_LIMIT, IPC_CREAT | 0600 );  //Reserva e Inicializacion Memoria Compartida
-    shm.buf   = (char *) shmat (shmid, NULL, 0);  // Se vincula la memoria compartida en espacio del SO con la memoria de nuestro programa 
-    char *buf = shm.buf;
+    shMemory *shm;  //Estructura general con identificadores de los IPCs y variables útiles
     
-    shm.shmid = shmid;
+    int shmid = shmget(IPC_PRIVATE, sizeof(shMemory), IPC_CREAT | 0600 );  //Reserva e Inicializacion Memoria Compartida
+    shm   = (shMemory*) shmat (shmid, NULL, 0);  // Se vincula la memoria compartida en espacio del SO con la memoria de nuestro programa 
+    //char *buf = shm.buf;
+    
+    shm->count = 0; 
+    shm->cambioD = 0;
+    shm->cambioI = 0; 
+    shm->shmid = shmid;
+   
 
     int msqid = msgget(ftok ("bin/ls",0600), IPC_CREAT | 0600); //Reserva de Cola de Mensajes 
     if ( msqid == -1 )
@@ -115,10 +119,10 @@ int main(int argc, char* argv[]){
         perror("Error de creacion cola de mensajes"); //Borrar los recurso reservados hasta el
         exit(EXIT_FAILURE);                           //momento , no esta implementado
     }      
-    shm.msqid = msqid;
+    shm->msqid = msqid;
 
     int semid = semget(ftok("bin/cat", 888),SEM_ARRAY,0600 | IPC_CREAT); 
-    shm.semid = semid;
+    shm->semid = semid;
     for (int i = 0; i < SEM_ARRAY; i++)  semctl( semid, i,  SETVAL, 1); 
 
     semctl( semid, STAR_RACE, SETVAL, ret); 
@@ -132,10 +136,10 @@ int main(int argc, char* argv[]){
     {
       message.type= i;
       message.pos = i;
-      msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);
+      msgsnd (msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);
     }
-
-    inicio_falonso(speed, semid, shm.buf);  //Inicializar biblioteca
+    
+    inicio_falonso(speed, semid, shm->buf);  //Inicializar biblioteca
     if (gotSIGINT) 
     {
         ipcrm(semid,shmid,msqid);
@@ -147,7 +151,6 @@ int main(int argc, char* argv[]){
     int pid   =  0; 
     int desp  =  0;
     int vel   =  vel = rand()%101;
-    int count = 0;
 
     int typeMsg = 0;
     int auxLib  = 0;
@@ -170,7 +173,7 @@ int main(int argc, char* argv[]){
 	                actionSIGINT.sa_flags   = 0;
 
                     sigaction (SIGINT, &actionSIGINT, NULL );
-                    msgrcv( shm.msqid, (void*)&message, sizeof(type_message)-sizeof(long), (int)desp, IPC_NOWAIT);   
+                    msgrcv(msqid, (void*)&message, sizeof(type_message)-sizeof(long), (int)desp, IPC_NOWAIT);   
                     if (gotSIGINT) break;
                 
                     inicio_coche(&carril,&desp,color+16);    
@@ -190,23 +193,17 @@ int main(int argc, char* argv[]){
                             avance_coche(&carril, &desp, color+16);
                             message.type= 1;
                             message.pos = 1;
-                            msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);  
+                            msgsnd (msqid, (struct msgbuf *)&message, sizeof(message.pos), IPC_NOWAIT);  
                             auxLib = 0;
                         }
      
                         if ((desp == 133 && carril == CARRIL_DERECHO) || 
                             (desp == 131 && carril == CARRIL_IZQUIERDO)) 
                         {
-                            semop_PV(shm.semid,LAP_COUNT,1);
-                            
-                            semop_PV(semid, SHM_SEM, -1);
-                            count=semctl( semid, LAP_COUNT, GETVAL);
-                            if (count == SEMLIMIT ){
-                                shm.count+=count;
-                                semctl( semid, LAP_COUNT, SETVAL,0);
-                            }
-                            semop_PV(semid, SHM_SEM, 1);
-                            
+                           semop_PV(semid, SHM_SEM, -1);
+                           shm->count++;
+                           semop_PV(semid, SHM_SEM,  1);
+ 
                         }
                        
                         if (gotSIGINT) break; //Revisamos si se ha registrado la señal SIGINT
@@ -214,18 +211,18 @@ int main(int argc, char* argv[]){
                         if ((desp == 105 && carril == CARRIL_DERECHO)|| 
                             (desp ==  98 && carril == CARRIL_IZQUIERDO)) 
                         {
-                            if( shm.buf[274] == ROJO || shm.buf[274] == AMARILLO)
+                            if( shm->buf[274] == ROJO || shm->buf[274] == AMARILLO)
                             {
-                                semop_PV(shm.semid, INTERCEPT_H,-1);
+                                semop_PV(semid, INTERCEPT_H,-1);
                             }
                         }
                         
                         if ((desp == 20 && carril == CARRIL_DERECHO) || 
                             (desp == 22 && carril == CARRIL_IZQUIERDO))
                         {
-                            if ( shm.buf[275] == ROJO || shm.buf[275] == AMARILLO)
+                            if ( shm->buf[275] == ROJO || shm->buf[275] == AMARILLO)
                             {
-                                semop_PV(shm.semid, INTERCEPT_V,-1);
+                                semop_PV(semid, INTERCEPT_V,-1);
                             }
                         }
                     
@@ -244,7 +241,7 @@ int main(int argc, char* argv[]){
                         if (gotSIGINT) break;
                        
                         typeMsg = auxLib+1;   
-                        if ( msgrcv( shm.msqid, (struct msgbuf *)&message, sizeof(type_message)-sizeof(long), (int)typeMsg, 0) != -1)
+                        if ( msgrcv(msqid, (struct msgbuf *)&message, sizeof(type_message)-sizeof(long), (int)typeMsg, 0) != -1)
                         {
                             if (message.pos == typeMsg)
                             { 
@@ -258,7 +255,7 @@ int main(int argc, char* argv[]){
                                 else{
                                      message.type= auxLib;
                                      message.pos = auxLib;
-                                     msgsnd (shm.msqid, (struct msgbuf *)&message, sizeof(message) - sizeof(long), IPC_NOWAIT);
+                                     msgsnd (msqid, (struct msgbuf *)&message, sizeof(message) - sizeof(long), IPC_NOWAIT);
                                 }                                                                           
                                 auxLib++;                                       
                             }
@@ -266,9 +263,11 @@ int main(int argc, char* argv[]){
                         if (gotSIGINT) break; 
                     }
                     
+                   
+
                     if (gotSIGINT) 
-                    {              
-                        shmdt((char*)shm.buf);
+                    {   
+                        shmdt((shMemory*)shm);
                         exit(0);
                     }
 
@@ -286,13 +285,12 @@ int main(int argc, char* argv[]){
         if (gotSIGINT) break; 
         semaphoreLight(shm, semH, semV);
     }
-
-    for (int i = 0; i < ret; i++) wait(NULL);
-
-    shm.count=shm.count+semctl( semid, LAP_COUNT, GETVAL);
-    fin_falonso(&shm.count); 
     
-    shmdt((char*)buf);
+    for (int i = 0; i < ret; i++) wait(NULL);
+    
+    fin_falonso(&(shm->count));
+
+    shmdt((shMemory*)shm);
     if (gotSIGINT) ipcrm(semid,shmid,msqid);
      
     else ipcrm(semid,shmid,msqid);
@@ -307,25 +305,25 @@ void ipcrm(int semid, int shmid, int msqid){
     semctl(semid,IPC_RMID,0);
 }
 
-int semaphoreLight(shMemory shm, int semH, int semV){   
+int semaphoreLight(shMemory *shm, int semH, int semV){   
     luz_semAforo(HORIZONTAL, semH);
     luz_semAforo(VERTICAL,   semV);
  
-    semop_PV(shm.semid, SHM_SEM,-1);
-    if( shm.buf[274] == VERDE)
+    semop_PV(shm->semid, SHM_SEM,-1);
+    if( shm->buf[274] == VERDE)
     {
-        semop_PV( shm.semid, INTERCEPT_H, 1); 
+        semop_PV( shm->semid, INTERCEPT_H, 1); 
     }
-    semop_PV(shm.semid, SHM_SEM,1);
+    semop_PV(shm->semid, SHM_SEM,1);
     
-    semop_PV(shm.semid, SHM_SEM,-1);
-    if( shm.buf[275] == VERDE)
+    semop_PV(shm->semid, SHM_SEM,-1);
+    if( shm->buf[275] == VERDE)
     { 
-         semop_PV( shm.semid, INTERCEPT_V, 1);  
+         semop_PV( shm->semid, INTERCEPT_V, 1);  
     }
-    semctl( shm.semid, INTERCEPT_V, SETVAL, 0);
-    semctl( shm.semid, INTERCEPT_H,SETVAL, 0);
-    semop_PV(shm.semid, SHM_SEM,1);
+    semctl( shm->semid, INTERCEPT_V, SETVAL, 0);
+    semctl( shm->semid, INTERCEPT_H,SETVAL, 0);
+    semop_PV(shm->semid, SHM_SEM,1);
    
     sleep(3); semH++; semV++;
 
